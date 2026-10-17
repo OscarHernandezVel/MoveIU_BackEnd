@@ -1,0 +1,23 @@
+.env
+*.db
+*.db-wal
+*.db-shm
+*.wal
+data/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.venv/
+edge.env
+*.onnx
+*.pt
+# Despliegue autoalojado:
+deploy/opensource/.env
+deploy/opensource/secrets/
+deploy/opensource/certs/
+deploy/opensource/runtime/
+deploy/opensource/backups/
