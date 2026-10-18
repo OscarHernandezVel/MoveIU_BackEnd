@@ -1,0 +1,76 @@
+# Entorno de DESARROLLO: PostgreSQL 16 con TimescaleDB + PostGIS, y Valkey 8 (BSD-3, compatible con Redis) con contraseña.
+# No es la configuración de producción (ver deploy/ha/README.md y deploy/redis/redis.conf).
+#
+# Uso (Docker Desktop abierto, desde esta carpeta):
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml ps            # esperar a que ambos digan "healthy"
+#   python scripts/init_dev_db.py                          # crea las tablas del documento v7
+#
+# Variables para el servicio y las pruebas (PowerShell: $env:NOMBRE="valor"):
+#   CORE_DATABASE_URL=postgresql://core:core@localhost:5432/core
+#   CORE_REDIS_URL=redis://:core-dev-redis@localhost:6379/0     # Valkey habla el protocolo de Redis: mismo cliente
+#   CORE_TEST_DATABASE_URL=postgresql://core:core@localhost:5432/core_test
+#   CORE_TEST_REDIS_URL=redis://:core-dev-redis@localhost:6379/15   # opcional: pruebas contra Redis real
+#
+# Imagen: timescaledb-ha incluye TimescaleDB y PostGIS (la imagen "timescaledb" a secas no trae PostGIS).
+# Modelo de IA abierto (opcional): docker compose -f docker-compose.dev.yml --profile ai up -d
+#   docker compose -f docker-compose.dev.yml exec llm ollama pull qwen3:8b
+#   CORE_AI_ENABLED=true CORE_AI_PROVIDER=openai_compat CORE_AI_BASE_URL=http://localhost:11434/v1 CORE_AI_MODEL=qwen3:8b
+# Los datos viven en el volumen "pgdata"; para empezar de cero: docker compose -f docker-compose.dev.yml down -v
+name: core-service-dev
+
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: core
+      POSTGRES_PASSWORD: core
+      POSTGRES_DB: core
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/home/postgres/pgdata
+      - ./deploy/dev/10-create-test-db.sql:/docker-entrypoint-initdb.d/10-create-test-db.sql:ro
+    command: >
+      postgres
+      -c max_connections=200
+      -c log_min_duration_statement=500
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U core -d core"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: >
+      valkey-server
+      --requirepass core-dev-redis
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -a core-dev-redis --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Servidor de modelos abiertos con API compatible con OpenAI (http://localhost:11434/v1). Solo con --profile ai.
+  # Para GPU use vLLM (Apache-2.0) en su lugar: imagen vllm/vllm-openai, puerto 8000, mismo formato de API.
+  llm:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - llmdata:/root/.ollama
+
+volumes:
+  pgdata:
+  valkeydata:
+  llmdata:
