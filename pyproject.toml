@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "core-service"
+version = "0.2.0-beta"
+description = "Core service of the real-time bus net-capacity detection system (Python, OOP)."
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "PyJWT>=2.8,<3.0",
+    "psycopg[binary,pool]>=3.2,<4.0",
+    "redis>=5.0,<6.0",
+]
+
+[project.optional-dependencies]
+server = ["uvicorn[standard]>=0.30"]
+push = ["firebase-admin>=6.5"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "fakeredis[lua]>=2.26",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "e2e: end-to-end tests that drive the whole system through its HTTP API",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "C4", "SIM", "RET", "PT"]
+ignore = [
+    "S101",   # assert is fine in tests
+    "B008",   # FastAPI dependencies use function calls in defaults
+    "UP006", "UP007", "UP035", "UP045",  # keep typing.Optional/List style for 3.10 readability
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S107", "S311", "B011", "PT011", "PT012", "PT018", "E501", "B905"]
+"simulator/**" = ["S311"]
+"src/core_service/i18n/catalog.py" = ["E501"]  # product copy is kept on one line per message
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src"]
+plugins = []
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["firebase_admin", "firebase_admin.*"]
+ignore_missing_imports = true  # optional dependency, only installed when push via Firebase is enabled
