@@ -1,0 +1,3 @@
+user default off nopass -@all
+user core on >CHANGE_ME_CORE_PASSWORD ~core:* &core:* +@string +@set +@sortedset +@keyspace +@read +@write +@pubsub +@scripting +@connection -@dangerous
+user monitor on >CHANGE_ME_MONITOR_PASSWORD ~* &* +ping +info +client|list +slowlog|get +latency|latest
