@@ -1,0 +1,27 @@
+{
+  "routes": [
+    {
+      "route_id": "C5",
+      "name": "Terminal Sur - Unicentro",
+      "active": true,
+      "path": [
+        [-77.2900, 1.1980], [-77.2870, 1.2030], [-77.2840, 1.2080], [-77.2811, 1.2136],
+        [-77.2780, 1.2180], [-77.2740, 1.2215], [-77.2700, 1.2250]
+      ],
+      "stops": ["P-001", "P-009", "P-018", "P-022", "P-027", "P-031"]
+    }
+  ],
+  "stops": [
+    {"stop_id": "P-001", "name": "Terminal Sur",     "lat": 1.1980, "lng": -77.2900},
+    {"stop_id": "P-009", "name": "Parque Nariño",    "lat": 1.2080, "lng": -77.2840},
+    {"stop_id": "P-018", "name": "Calle 18",         "lat": 1.2136, "lng": -77.2811},
+    {"stop_id": "P-022", "name": "Av. Panamericana", "lat": 1.2180, "lng": -77.2780},
+    {"stop_id": "P-027", "name": "Las Cuadras",      "lat": 1.2215, "lng": -77.2740},
+    {"stop_id": "P-031", "name": "Unicentro",        "lat": 1.2250, "lng": -77.2700}
+  ],
+  "buses": [
+    {"bus_id": "1045", "route_id": "C5", "model": "Bus 12 m",           "seats": 41, "standing_positions": 8, "wheelchair_spaces": 0, "door_zones": 2, "status": "active"},
+    {"bus_id": "1102", "route_id": "C5", "model": "Bus 12 m accesible", "seats": 41, "standing_positions": 8, "wheelchair_spaces": 1, "door_zones": 2, "status": "active"},
+    {"bus_id": "1088", "route_id": "C5", "model": "Buseta",             "seats": 25, "standing_positions": 4, "wheelchair_spaces": 0, "door_zones": 2, "status": "active"}
+  ]
+}

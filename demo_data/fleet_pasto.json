@@ -1,0 +1,89 @@
+{
+  "format": "core-catalog/1",
+  "provenance": {
+    "source": "Flota de demostración: matrículas y modelos ficticios (no hay datos públicos de la flota)",
+    "notes": "Reemplace por el inventario real de cada operador."
+  },
+  "buses": [
+    {
+      "bus_id": "2101",
+      "route_id": "C1",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2102",
+      "route_id": "C1",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2201",
+      "route_id": "C2",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2202",
+      "route_id": "C2",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2301",
+      "route_id": "C3",
+      "model": "Bus 12 m accesible",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 1,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2302",
+      "route_id": "C3",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2401",
+      "route_id": "C4",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2402",
+      "route_id": "C4",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "maintenance"
+    }
+  ]
+}
