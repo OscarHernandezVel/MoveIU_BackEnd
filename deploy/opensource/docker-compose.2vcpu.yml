@@ -1,0 +1,81 @@
+# Perfil para un servidor PEQUEÑO: 2 vCPU y 4 GB de RAM (opción A, piloto).
+# Se superpone a docker-compose.prod.yml:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.2vcpu.yml up -d --build
+#   (o simplemente: python3 ops.py up)
+#
+# Con 2 GB de RAM, ponga en .env:  CORE_REPLICAS=1  PG_SHARED_BUFFERS=256MB  PG_EFFECTIVE_CACHE=768MB
+#                                  PG_MEM_LIMIT=896M  VALKEY_MAXMEMORY=128mb  VALKEY_MEM_LIMIT=192M
+#
+# Presupuesto de memoria con los valores por defecto (límites duros; el resto queda para el sistema y la caché):
+#   caddy 128M + core 2 x 384M + postgres 1536M + valkey 320M  ≈ 2,75 GB   (+ uptime-kuma 256M opcional)
+
+x-logging: &logging
+  # Sin rotación, los registros de Docker pueden llenar un disco pequeño en semanas.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  caddy:
+    logging: *logging
+    deploy:
+      resources:
+        limits: {cpus: "0.50", memory: 128M}
+
+  core:
+    logging: *logging
+    deploy:
+      replicas: ${CORE_REPLICAS:-2}
+      resources:
+        limits: {cpus: "1.00", memory: 384M}
+        reservations: {memory: 192M}
+    environment:
+      # 2 réplicas x 6 conexiones = 12 de las 50 de PostgreSQL (queda margen para migraciones, ingesta y psql).
+      CORE_DB_POOL_MIN: "1"
+      CORE_DB_POOL_MAX: "6"
+      CORE_REDIS_MAX_CONNECTIONS: "20"
+      # Conexiones WebSocket por réplica (más allá cierra con 1013 y el cliente reintenta).
+      CORE_WS_MAX_CONNECTIONS: "1500"
+
+  postgres:
+    logging: *logging
+    shm_size: 256mb
+    deploy:
+      resources:
+        limits: {cpus: "1.50", memory: "${PG_MEM_LIMIT:-1536M}"}
+        reservations: {memory: 512M}
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/certs/postgres.crt
+      -c ssl_key_file=/certs/postgres.key
+      -c max_connections=50
+      -c shared_buffers=${PG_SHARED_BUFFERS:-512MB}
+      -c effective_cache_size=${PG_EFFECTIVE_CACHE:-1536MB}
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c wal_buffers=16MB
+      -c max_wal_size=1GB
+      -c checkpoint_completion_target=0.9
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c max_worker_processes=8
+      -c max_parallel_workers=2
+      -c max_parallel_workers_per_gather=1
+      -c timescaledb.max_background_workers=4
+      -c log_min_duration_statement=500
+
+  valkey:
+    logging: *logging
+    command: ["valkey-server", "/etc/valkey/valkey.conf", "--maxmemory", "${VALKEY_MAXMEMORY:-256mb}"]
+    deploy:
+      resources:
+        limits: {cpus: "0.50", memory: "${VALKEY_MEM_LIMIT:-320M}"}
+
+  uptime-kuma:
+    logging: *logging
+    deploy:
+      resources:
+        limits: {cpus: "0.25", memory: 256M}

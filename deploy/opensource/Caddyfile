@@ -1,0 +1,54 @@
+# Caddy: HTTPS automático (Let's Encrypt), proxy inverso con WebSocket y archivos del frontend.
+# DOMAIN y ACME_EMAIL vienen del archivo .env (los crea init_secrets.py).
+{
+	email {$ACME_EMAIL}
+}
+
+# Todas las réplicas del servicio "core": Caddy las descubre por DNS de Docker y retira las que no están listas.
+(core_backend) {
+	reverse_proxy {
+		dynamic a {
+			name core
+			port 8080
+			refresh 10s
+		}
+		lb_policy round_robin
+		lb_try_duration 5s
+		health_uri /api/v1/health/ready
+		health_interval 10s
+		health_timeout 3s
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+# Pasajeros: frontend + API + WebSocket en el mismo dominio (sin CORS).
+app.{$DOMAIN} {
+	import security_headers
+	encode zstd gzip
+
+	@backend path /api/* /ws/*
+	handle @backend {
+		import core_backend
+	}
+
+	handle {
+		root * /srv/frontend
+		file_server {
+			hide README.md
+		}
+	}
+}
+
+# Buses (edge) y clientes externos: solo la API.
+api.{$DOMAIN} {
+	import security_headers
+	import core_backend
+}

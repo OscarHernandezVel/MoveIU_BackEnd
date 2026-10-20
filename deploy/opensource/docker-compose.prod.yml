@@ -1,0 +1,155 @@
+# Despliegue AUTOALOJADO (sin nube propietaria) en un servidor Linux con Docker.
+# Todo es software libre salvo lo indicado en docs/despliegue-opensource.md.
+#
+#   sudo python3 init_secrets.py --domain <dominio> --email <correo>   # una sola vez
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Solo Caddy publica puertos (80/443). PostgreSQL y Valkey quedan en la red interna, con TLS y contraseña.
+name: capacidadbus
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../../frontend:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      core:
+        condition: service_healthy
+
+  core:
+    build:
+      context: ../..
+    image: capacidadbus/core-service:local
+    restart: unless-stopped
+    deploy:
+      replicas: 2                      # sin estado local: se puede subir a N réplicas
+    environment:
+      CORE_ENV: production
+      CORE_HOST: 0.0.0.0
+      CORE_TRUST_PROXY: "true"         # Caddy descarta el X-Forwarded-For que envía el cliente
+      CORE_CORS_ORIGINS: https://app.${DOMAIN}
+      CORE_JWT_SECRET_FILE: /run/secrets/jwt_secret
+      CORE_INGEST_KEY_FILE: /run/secrets/ingest_key
+      CORE_DATABASE_URL_FILE: /run/secrets/database_url
+      CORE_DATABASE_MIGRATION_URL_FILE: /run/secrets/database_migration_url
+      CORE_TIMESCALE_REQUIRED: "true"
+      CORE_POSTGIS_REQUIRED: "true"
+      CORE_DB_POOL_MAX: "10"
+      CORE_REDIS_URL_FILE: /run/secrets/redis_url
+      CORE_REDIS_TLS_CA: /certs/ca.crt
+      CORE_TEAM_EMAILS: ${TEAM_EMAILS:-}
+      CORE_SMTP_HOST: ${SMTP_HOST:-}
+      CORE_SMTP_PORT: ${SMTP_PORT:-587}
+      CORE_SMTP_USER: ${SMTP_USER:-}
+      CORE_SMTP_PASSWORD_FILE: /run/secrets/smtp_password
+      CORE_SMTP_SENDER: ${SMTP_SENDER:-no-responder@capacidadbus.co}
+      CORE_AI_ENABLED: ${AI_ENABLED:-false}
+      CORE_AI_API_KEY_FILE: /run/secrets/ai_api_key
+      # Push real (Firebase): descomente y agregue el secreto firebase_credentials más abajo.
+      # CORE_FIREBASE_CREDENTIALS: /run/secrets/firebase_credentials
+    secrets:
+      - jwt_secret
+      - ingest_key
+      - database_url
+      - database_migration_url
+      - redis_url
+      - smtp_password
+      - ai_api_key
+    volumes:
+      - ./certs/ca.crt:/certs/ca.crt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  postgres:
+    # PostgreSQL 16 + TimescaleDB (edición Community) + PostGIS + pgBackRest/Patroni incluidos.
+    image: timescale/timescaledb-ha:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: core
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/certs/postgres.crt
+      -c ssl_key_file=/certs/postgres.key
+      -c max_connections=200
+      -c log_min_duration_statement=500
+    secrets:
+      - pg_app_password
+      - pg_migrator_password
+      - pg_reader_password
+    volumes:
+      - pgdata:/home/postgres/pgdata
+      - ./certs/postgres.crt:/certs/postgres.crt:ro
+      - ./certs/postgres.key:/certs/postgres.key:ro
+      - ./initdb/20-roles.sh:/docker-entrypoint-initdb.d/20-roles.sh:ro
+      - ../../backend/deploy/postgres:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d core"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  valkey:
+    # Valkey: bifurcación BSD de Redis, compatible con el cliente y los scripts Lua del backend.
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: ["valkey-server", "/etc/valkey/valkey.conf"]
+    volumes:
+      - ./runtime/valkey.conf:/etc/valkey/valkey.conf:ro
+      - ./certs/valkey.crt:/certs/valkey.crt:ro
+      - ./certs/valkey.key:/certs/valkey.key:ro
+      - ./certs/ca.crt:/certs/ca.crt:ro
+      - valkeydata:/data
+    healthcheck:
+      # Sin contraseña responde NOAUTH: basta para saber que el servidor TLS está arriba.
+      test: ["CMD-SHELL", "valkey-cli --tls --cacert /certs/ca.crt -h localhost ping 2>&1 | grep -qE 'PONG|NOAUTH'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  uptime-kuma:
+    # Opcional: monitor de disponibilidad con alertas (docker compose --profile monitoring up -d).
+    # Solo escucha en el servidor; acceda con un túnel SSH: ssh -L 3001:127.0.0.1:3001 usuario@servidor
+    image: louislam/uptime-kuma:1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - kumadata:/app/data
+
+secrets:
+  jwt_secret: {file: ./secrets/jwt_secret}
+  ingest_key: {file: ./secrets/ingest_key}
+  database_url: {file: ./secrets/database_url}
+  database_migration_url: {file: ./secrets/database_migration_url}
+  redis_url: {file: ./secrets/redis_url}
+  smtp_password: {file: ./secrets/smtp_password}
+  ai_api_key: {file: ./secrets/ai_api_key}
+  pg_app_password: {file: ./secrets/pg_app_password}
+  pg_migrator_password: {file: ./secrets/pg_migrator_password}
+  pg_reader_password: {file: ./secrets/pg_reader_password}
+  # firebase_credentials: {file: ./secrets/firebase_credentials.json}
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:
+  valkeydata:
+  kumadata:
