@@ -1,0 +1,20 @@
+# Imagen del backend para Vercel ("Dockerfile.vercel"): Vercel la construye, la guarda en su registro de contenedores
+# y la sirve como una funcion con autoescalado. Es la MISMA imagen que se puede ejecutar en cualquier otro lugar.
+#
+# Reglas de Vercel: el contenedor es un servicio HTTP sin estado que escucha en $PORT (80 por omision); sin trafico
+# durante 5 minutos en produccion se apaga y al apagarse recibe SIGTERM con 30 s de gracia.
+FROM python:3.12-slim AS runtime
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY src ./src
+# Sin proceso siempre encendido: nada de migraciones ni hilos al arrancar (ver app.py). Los trabajos periodicos los
+# llama un cron en GET /api/v1/internal/jobs/run.
+ENV PYTHONPATH=/app/src CORE_HOST=0.0.0.0 CORE_RUN_JOBS=false CORE_DB_MIGRATE_ON_START=false \
+    CORE_DB_POOL_MIN=1 CORE_DB_POOL_MAX=3 CORE_REDIS_MAX_CONNECTIONS=10 CORE_TRUST_PROXY=true
+# No corre como root: por eso no puede usar el puerto 80. Defina PORT=8080 en las variables del proyecto de Vercel.
+RUN useradd --system --uid 10001 core
+USER core
+EXPOSE 8080
+CMD ["python", "-m", "core_service"]

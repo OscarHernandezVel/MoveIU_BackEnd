@@ -1,0 +1,17 @@
+# Lo que NO viaja a la funcion de Vercel (pesa y no se usa en el servidor)
+edge/
+web/
+tests/
+docs/
+simulator/
+scripts/
+deploy/
+demo_data/
+*.md
+docker-compose*.yml
+Dockerfile*
+.env*
+**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
