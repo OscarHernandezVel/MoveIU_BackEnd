@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 import pytest
 
 from core_service.errors import NotFoundError, ValidationError
 from core_service.models import Direction, OccupancyState
 from core_service.occupancy import FusionReason
+from core_service.services.keyed_locks import KeyedLocks
 from core_service.services.occupancy_service import ProcessStatus
 from factories import demo_track, make_reading
 from harness import PipelineHarness, build_pipeline_harness
@@ -84,6 +88,36 @@ class TestRoundTrips:
         send(h, seated=12)
         assert reads.count("live_state") == 1
         assert [s.seated for s in h.live_states.list_by_route("C5")] == [12]  # the route index is still right
+
+    def test_a_batch_takes_the_bus_lock_and_shares_the_history_once_per_chunk(
+        self, h: PipelineHarness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class CountingLocks:
+            """Counts the outermost acquisitions: the ones that cost a Redis round trip with the distributed lock."""
+
+            def __init__(self) -> None:
+                self.inner, self.depth, self.takes = KeyedLocks(), 0, 0
+
+            @contextmanager
+            def acquire(self, key: str) -> Iterator[None]:
+                self.takes += self.depth == 0
+                self.depth += 1
+                try:
+                    with self.inner.acquire(key):
+                        yield
+                finally:
+                    self.depth -= 1
+
+        locks, shared = CountingLocks(), []
+        monkeypatch.setattr(h.service, "_locks", locks)
+        monkeypatch.setattr(h.histories, "persist", shared.append)
+        readings = [
+            make_reading(ts=h.clock.now() - 750 + i * 3, **at(0.1 + i * 0.002), seated=10) for i in range(250)
+        ]
+        results = h.service.process_batch(list(reversed(readings)))  # any order: they are sorted by time
+        assert all(r.ok and r.outcome.status is ProcessStatus.APPLIED for r in results)  # type: ignore[union-attr]
+        assert locks.takes == 3 and shared == ["1045"] * 3  # chunks of 100, not one per reading
+        assert h.telemetry.count() == 250 and len(h.histories.get("1045")) == min(250, h.histories._max_size)
 
 
 class TestOrdering:

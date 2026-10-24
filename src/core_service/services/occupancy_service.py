@@ -16,6 +16,7 @@ live state, which always reflects the newest reading.
 
 from __future__ import annotations
 
+import itertools
 import logging
 import time
 from collections.abc import Sequence
@@ -38,6 +39,7 @@ from core_service.services.live_state_store import LiveStateStore
 from core_service.services.saga import Saga
 
 log = logging.getLogger(__name__)
+BATCH_LOCK_CHUNK = 100
 
 
 class ProcessStatus(str, Enum):
@@ -94,7 +96,9 @@ class OccupancyService:
         self._locks = locks or KeyedLocks()
 
     # ------------------------------------------------------------------ public
-    def process(self, reading: Reading) -> ProcessOutcome:
+    def process(self, reading: Reading, *, share_history: bool = True) -> ProcessOutcome:
+        """``share_history=False`` leaves the shared snapshot of the history to the caller (a batch writes it once
+        per bus instead of once per reading)."""
         started = time.perf_counter()
         bus = self._catalog.require_bus(reading.bus_id)
         self._check_timestamp(reading)
@@ -171,22 +175,32 @@ class OccupancyService:
             if at_terminal:
                 dropped = history.reset()  # people get off at the terminal: door counters start over
                 log.debug("Bus %s at terminal: %s history entries dropped", bus.bus_id, dropped)
-            self._histories.persist(bus.bus_id)
+            if share_history:
+                self._histories.persist(bus.bus_id)
         self._metrics.increment("readings", status=ProcessStatus.APPLIED.value)
         self._metrics.observe("occupancy_process_ms", (time.perf_counter() - started) * 1000.0)
         self._events.publish(OccupancyUpdated(state, previous_state, decision.reason, reading))
         return ProcessOutcome(ProcessStatus.APPLIED, state, decision.reason)
 
     def process_batch(self, readings: Sequence[Reading]) -> list[BatchItemResult]:
-        """Process an offline burst in timestamp order; each reading succeeds or fails on its own."""
+        """Process an offline burst in timestamp order; each reading succeeds or fails on its own.
+
+        The readings of one bus are processed under one hold of its lock and the history is shared once, per
+        chunk of ``BATCH_LOCK_CHUNK``: 3 round trips fewer per reading (measured: 500 readings took 8.9 s, the
+        edge gave up at 8 s). The chunk keeps one hold well inside the 30 s TTL of the distributed lock."""
         indexed: Array[tuple[int, Reading]] = Array.from_iterable(enumerate(readings))
-        ordered = indexed.merge_sorted(key=lambda item: (item[1].bus_id, item[1].ts))
+        ordered = list(indexed.merge_sorted(key=lambda item: (item[1].bus_id, item[1].ts)))
         results: list[BatchItemResult] = []
-        for index, reading in ordered:
-            try:
-                results.append(BatchItemResult(index, self.process(reading)))
-            except DomainError as error:
-                results.append(BatchItemResult(index, error_code=error.code))
+        for bus_id, group in itertools.groupby(ordered, key=lambda item: item[1].bus_id):
+            items = list(group)
+            for start in range(0, len(items), BATCH_LOCK_CHUNK):
+                with self._locks.acquire(bus_id):  # re-entrant: process() takes it again without a round trip
+                    for index, reading in items[start : start + BATCH_LOCK_CHUNK]:
+                        try:
+                            results.append(BatchItemResult(index, self.process(reading, share_history=False)))
+                        except DomainError as error:
+                            results.append(BatchItemResult(index, error_code=error.code))
+                    self._histories.persist(bus_id)
         return sorted(results, key=lambda item: item.index)
 
     # ----------------------------------------------------------------- helpers
