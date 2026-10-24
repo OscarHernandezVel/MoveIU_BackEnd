@@ -72,6 +72,20 @@ class TestState:
         assert h.published[-1].fusion_reason is FusionReason.LOW_CONFIDENCE
 
 
+class TestRoundTrips:
+    """Every store call is a Redis round trip in production (~1 ms each on the development PC)."""
+
+    def test_a_reading_reads_the_live_state_once(self, h: PipelineHarness, monkeypatch: pytest.MonkeyPatch) -> None:
+        send(h, seated=10)
+        h.clock.advance(5)
+        reads: list[str] = []
+        original = h.store.get
+        monkeypatch.setattr(h.store, "get", lambda collection, key: reads.append(collection) or original(collection, key))
+        send(h, seated=12)
+        assert reads.count("live_state") == 1
+        assert [s.seated for s in h.live_states.list_by_route("C5")] == [12]  # the route index is still right
+
+
 class TestOrdering:
     def test_duplicates_are_ignored(self, h: PipelineHarness) -> None:
         send(h, seated=10)

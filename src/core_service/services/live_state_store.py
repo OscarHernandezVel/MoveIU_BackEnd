@@ -14,6 +14,7 @@ from core_service.persistence.documents import DocumentStore
 
 COLLECTION = "live_state"
 ROUTE_INDEX = "live_route_index"
+_UNKNOWN = object()
 
 
 class LiveStateStore:
@@ -32,10 +33,15 @@ class LiveStateStore:
             if route_id:
                 self._store.add_to_set(ROUTE_INDEX, route_id, document["bus_id"])
 
-    def save(self, state: LiveBusState) -> None:
-        previous = self._store.get(COLLECTION, state.bus_id)
+    def save(self, state: LiveBusState, previous: LiveBusState | None | object = _UNKNOWN) -> None:
+        """``previous``: the state the caller already read under the bus lock. Passing it saves one read of the
+        store per reading (one Redis round trip of the ten a reading cost)."""
+        if previous is _UNKNOWN:
+            document = self._store.get(COLLECTION, state.bus_id)
+            old_route = document.get("route_id") if document else None
+        else:
+            old_route = previous.route_id if isinstance(previous, LiveBusState) else None
         self._store.put(COLLECTION, state.bus_id, state.to_dict(), ttl_seconds=self._ttl)
-        old_route = previous.get("route_id") if previous else None
         if old_route and old_route != state.route_id:
             self._store.remove_from_set(ROUTE_INDEX, old_route, state.bus_id)
         if state.route_id:

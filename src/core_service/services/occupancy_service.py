@@ -162,7 +162,7 @@ class OccupancyService:
                     updated_at=self._clock.now(),
                 )
                 saga.step(
-                    lambda: self._live_states.save(state),
+                    lambda: self._live_states.save(state, previous_state),
                     (lambda: self._live_states.save(previous_state))
                     if previous_state
                     else (lambda: self._live_states.delete(bus.bus_id)),
