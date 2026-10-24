@@ -44,7 +44,9 @@ class LiveStateStore:
         self._store.put(COLLECTION, state.bus_id, state.to_dict(), ttl_seconds=self._ttl)
         if old_route and old_route != state.route_id:
             self._store.remove_from_set(ROUTE_INDEX, old_route, state.bus_id)
-        if state.route_id:
+        # A bus that already had a live state on this route is already in its index: no SADD (one round trip less
+        # per reading). The member is only removed when that state expired, and then ``old_route`` is None.
+        if state.route_id and old_route != state.route_id:
             self._store.add_to_set(ROUTE_INDEX, state.route_id, state.bus_id)
 
     def get(self, bus_id: str) -> LiveBusState | None:

@@ -89,6 +89,22 @@ class TestRoundTrips:
         assert reads.count("live_state") == 1
         assert [s.seated for s in h.live_states.list_by_route("C5")] == [12]  # the route index is still right
 
+    def test_the_route_index_is_written_only_when_the_route_changes(
+        self, h: PipelineHarness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        added: list[tuple[str, str]] = []
+        original = h.store.add_to_set
+        monkeypatch.setattr(
+            h.store, "add_to_set", lambda c, key, member: added.append((key, member)) or original(c, key, member)
+        )
+        for step in range(3):
+            send(h, offset=step * 5, seated=10)
+        assert added == [("C5", "1045")]  # the first reading only
+        h.store.delete("live_state", "1045")  # the state expired: the bus must enter the index again
+        h.clock.advance(20)
+        send(h, seated=10)
+        assert added == [("C5", "1045")] * 2 and [s.bus_id for s in h.live_states.list_by_route("C5")] == ["1045"]
+
     def test_a_batch_takes_the_bus_lock_and_shares_the_history_once_per_chunk(
         self, h: PipelineHarness, monkeypatch: pytest.MonkeyPatch
     ) -> None:
