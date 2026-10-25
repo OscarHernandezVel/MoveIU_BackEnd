@@ -59,8 +59,8 @@ backend/                          (el front-end está en ../frontend y el hardwa
 ├── simulator/simulate_bus.py     simula el hardware de un bus (solo biblioteca estándar)
 ├── simulator/simulate_fleet.py   simula todos los buses activos de un paquete a la vez
 ├── simulator/watch_stream.py     sigue rutas por el WebSocket como lo haría la app
-├── ../edge/                      a bordo de la maqueta: Arduino (puertas), Raspberry Pi (cámaras, GPS,
-│                                 cola SQLite, envío), diagrama de conexión y planos 1:20 (ver edge/README.md)
+├── ../edge/                      a bordo de la maqueta: Arduino (2 sensores por puerta), portátil con Windows
+│                                 (cámaras, GPS simulado, cola SQLite, envío) y planos de corte (ver edge/README.md)
 ├── pyproject.toml                pytest, ruff y mypy
 ├── docker-compose.dev.yml        TimescaleDB + Redis para desarrollo y pruebas
 ├── Dockerfile                    imagen del servicio (usuario sin privilegios)
