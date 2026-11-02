@@ -1,0 +1,59 @@
+# Prueba y despliega API Gateway + Lambda de ingesta (deploy/aws-lambda) en AWS.
+#
+# Configuración única en GitHub (Settings -> Secrets and variables -> Actions):
+#   secreto   AWS_DEPLOY_ROLE_ARN   rol de IAM con confianza OIDC hacia este repositorio (ver docs/despliegue-aws-lambda.md)
+#   variables AWS_REGION, BACKEND_URL, VPC_ID, SUBNET_IDS (separadas por comas), BACKEND_SG_ID,
+#             EC2_INSTANCE_ID y DB_INSTANCE_ID (estas dos activan el apagado nocturno)
+name: Lambda de ingesta
+
+on:
+  push:
+    branches: [main]
+    paths: ["deploy/aws-lambda/**", ".github/workflows/lambda-ingesta.yml"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC: GitHub obtiene credenciales temporales de AWS, sin claves guardadas
+  contents: read
+
+concurrency: lambda-ingesta
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/aws-lambda
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prueba del proxy
+        run: python test_ingest_proxy.py
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Desplegar
+        run: >
+          sam deploy
+          --stack-name capacidadbus-ingesta
+          --resolve-s3
+          --capabilities CAPABILITY_IAM
+          --no-confirm-changeset
+          --no-fail-on-empty-changeset
+          --parameter-overrides
+          BackendUrl=${{ vars.BACKEND_URL }}
+          VpcId=${{ vars.VPC_ID }}
+          SubnetIds=${{ vars.SUBNET_IDS }}
+          BackendSecurityGroupId=${{ vars.BACKEND_SG_ID }}
+          Ec2InstanceId=${{ vars.EC2_INSTANCE_ID }}
+          DbInstanceId=${{ vars.DB_INSTANCE_ID }}
+      - name: URL para los buses
+        run: >
+          aws cloudformation describe-stacks --stack-name capacidadbus-ingesta
+          --query "Stacks[0].Outputs[?OutputKey=='IngestUrl'].OutputValue" --output text
