@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Ingesta de telemetria del sistema de capacidad de buses:
+  API Gateway (HTTP API) -> Lambda (en la VPC) -> backend en EC2 (Caddy :8080).
+  Opcional: apagado nocturno de EC2 y RDS con EventBridge Scheduler (ahorro entre pruebas).
+
+Parameters:
+  BackendUrl:
+    Type: String
+    Description: URL privada del backend, p. ej. http://10.0.1.25:8080 (IP privada del EC2, no cambia al apagarlo)
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subredes de la VPC para el Lambda (las mismas del EC2 sirven)
+  BackendSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Grupo de seguridad del EC2; se le agrega la entrada 8080 solo desde el Lambda
+  Ec2InstanceId:
+    Type: String
+    Default: ""
+    Description: Opcional. Instancia EC2 a apagar cada noche
+  DbInstanceId:
+    Type: String
+    Default: ""
+    Description: Opcional. Identificador de la instancia RDS a apagar cada noche (RDS se reenciende sola a los 7 dias)
+  StopSchedule:
+    Type: String
+    Default: cron(0 23 * * ? *)
+  ScheduleTimezone:
+    Type: String
+    Default: America/Bogota
+
+Conditions:
+  StopEc2: !Not [!Equals [!Ref Ec2InstanceId, ""]]
+  StopDb: !Not [!Equals [!Ref DbInstanceId, ""]]
+  StopAny: !Or [!Condition StopEc2, !Condition StopDb]
+
+Resources:
+  IngestSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda de ingesta - solo puede hablar con el backend en el puerto 8080
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          DestinationSecurityGroupId: !Ref BackendSecurityGroupId
+
+  BackendIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref BackendSecurityGroupId
+      Description: Lambda de ingesta hacia Caddy 8080
+      IpProtocol: tcp
+      FromPort: 8080
+      ToPort: 8080
+      SourceSecurityGroupId: !Ref IngestSecurityGroup
+
+  IngestApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        # Tope global: protege al backend de rafagas o abuso (el backend ademas limita por bus).
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 20
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: ingest_proxy.handler
+      Runtime: python3.12
+      Architectures: [arm64]
+      MemorySize: 128
+      Timeout: 29
+      Environment:
+        Variables:
+          BACKEND_URL: !Ref BackendUrl
+      VpcConfig:
+        SecurityGroupIds: [!Ref IngestSecurityGroup]
+        SubnetIds: !Ref SubnetIds
+      LoggingConfig:
+        LogGroup: !Ref IngestLogs
+      Events:
+        Ingest:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref IngestApi
+            Method: POST
+            Path: /api/v1/internal/{proxy+}
+
+  IngestLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+
+  StopRole:
+    Type: AWS::IAM::Role
+    Condition: StopAny
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: scheduler.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: stop-test-environment
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - !If
+                - StopEc2
+                - Effect: Allow
+                  Action: ec2:StopInstances
+                  Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${Ec2InstanceId}
+                - !Ref AWS::NoValue
+              - !If
+                - StopDb
+                - Effect: Allow
+                  Action: rds:StopDBInstance
+                  Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:${DbInstanceId}
+                - !Ref AWS::NoValue
+
+  StopEc2Schedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: StopEc2
+    Properties:
+      Description: Apaga el EC2 de pruebas cada noche por si alguien lo olvida encendido
+      ScheduleExpression: !Ref StopSchedule
+      ScheduleExpressionTimezone: !Ref ScheduleTimezone
+      FlexibleTimeWindow: {Mode: "OFF"}
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:ec2:stopInstances
+        RoleArn: !GetAtt StopRole.Arn
+        Input: !Sub '{"InstanceIds": ["${Ec2InstanceId}"]}'
+
+  StopDbSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: StopDb
+    Properties:
+      Description: Apaga RDS cada noche (si ya esta apagada, el intento falla sin efecto)
+      ScheduleExpression: !Ref StopSchedule
+      ScheduleExpressionTimezone: !Ref ScheduleTimezone
+      FlexibleTimeWindow: {Mode: "OFF"}
+      Target:
+        Arn: arn:aws:scheduler:::aws-sdk:rds:stopDBInstance
+        RoleArn: !GetAtt StopRole.Arn
+        Input: !Sub '{"DbInstanceIdentifier": "${DbInstanceId}"}'
+
+Outputs:
+  IngestUrl:
+    Description: Ponga este valor en EDGE_SERVER_URL de cada bus
+    Value: !Sub https://${IngestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
