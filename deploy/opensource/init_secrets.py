@@ -169,6 +169,9 @@ def main() -> int:
         "SMTP_USER=",
         f"SMTP_SENDER=no-responder@{args.domain}",
         "AI_ENABLED=false",
+        # Vacíos: en AWS, Bedrock (docker-compose.aws.yml); fuera de AWS, la URL y el modelo del servidor de modelos.
+        "AI_BASE_URL=",
+        "AI_MODEL=",
         *([f"DB_HOST={args.db_host}",
            "COMPOSE_FILE=docker-compose.prod.yml:docker-compose.2vcpu.yml:docker-compose.aws.yml"]
           if external_db else []),

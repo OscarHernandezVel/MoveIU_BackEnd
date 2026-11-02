@@ -14,6 +14,10 @@ services:
     environment:
       # RDS no ofrece TimescaleDB: la telemetría queda en una tabla normal y el trabajo telemetry_retention la poda.
       CORE_TIMESCALE_REQUIRED: "false"
+      # IA: Amazon Bedrock por su API compatible con OpenAI (se activa con AI_ENABLED=true y la clave en
+      # secrets/ai_api_key). AI_MODEL=openai.gpt-oss-120b-1:0 para el modelo grande.
+      CORE_AI_BASE_URL: ${AI_BASE_URL:-https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1}
+      CORE_AI_MODEL: ${AI_MODEL:-openai.gpt-oss-20b-1:0}
     volumes:
       - ./certs/rds-ca.pem:/certs/rds-ca.pem:ro    # cadena de certificados de RDS (sslmode=verify-full)
 

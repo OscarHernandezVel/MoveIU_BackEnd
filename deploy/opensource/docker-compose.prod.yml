@@ -55,6 +55,12 @@ services:
       CORE_SMTP_PASSWORD_FILE: /run/secrets/smtp_password
       CORE_SMTP_SENDER: ${SMTP_SENDER:-no-responder@capacidadbus.co}
       CORE_AI_ENABLED: ${AI_ENABLED:-false}
+      # Servidor de modelos con API compatible con OpenAI (vLLM, Ollama o Amazon Bedrock; en AWS lo fija
+      # docker-compose.aws.yml). Sin estas variables el backend usaría su valor por omisión, la API de Anthropic.
+      CORE_AI_PROVIDER: ${AI_PROVIDER:-openai_compat}
+      CORE_AI_BASE_URL: ${AI_BASE_URL:-}
+      CORE_AI_MODEL: ${AI_MODEL:-}
+      CORE_AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-60}
       CORE_AI_API_KEY_FILE: /run/secrets/ai_api_key
       # Push real (Firebase): descomente y agregue el secreto firebase_credentials más abajo.
       # CORE_FIREBASE_CREDENTIALS: /run/secrets/firebase_credentials
