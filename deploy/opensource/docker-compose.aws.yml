@@ -1,0 +1,25 @@
+# Variante AWS (EC2 + Amazon RDS + API Gateway/Lambda). Se superpone a los otros dos archivos:
+#
+#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.2vcpu.yml:docker-compose.aws.yml   (en .env)
+#
+# Requiere Docker Compose >= 2.24.4 (etiqueta !override).
+services:
+  postgres:
+    profiles: ["local-db"]            # RDS reemplaza al contenedor: no se arranca
+
+  core:
+    depends_on: !override             # ya no depende del PostgreSQL local
+      valkey:
+        condition: service_healthy
+    environment:
+      # RDS no ofrece TimescaleDB: la telemetría queda en una tabla normal y el trabajo telemetry_retention la poda.
+      CORE_TIMESCALE_REQUIRED: "false"
+    volumes:
+      - ./certs/rds-ca.pem:/certs/rds-ca.pem:ro    # cadena de certificados de RDS (sslmode=verify-full)
+
+  caddy:
+    ports:
+      - "8080:8080"                   # entrada privada del Lambda; el grupo de seguridad solo admite al Lambda
+    volumes:
+      - ./Caddyfile.aws:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile.base:ro

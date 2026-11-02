@@ -1,0 +1,14 @@
+# Caddyfile de la variante AWS: el mismo de siempre (app./api.) más la entrada privada del Lambda.
+import /etc/caddy/Caddyfile.base
+
+# API Gateway -> Lambda (en la VPC) -> aquí. HTTP plano dentro de la VPC: el grupo de seguridad del EC2 solo
+# abre el 8080 al grupo del Lambda. Solo se aceptan las rutas de ingesta.
+:8080 {
+	@ingest path /api/v1/internal/*
+	handle @ingest {
+		import core_backend
+	}
+	handle {
+		respond 404
+	}
+}
