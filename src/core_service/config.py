@@ -383,8 +383,6 @@ class Settings:
                 problems.append(f"{name} must include a password (or use certificate authentication)")
         if db.migration_url and db.migration_url == db.url:
             problems.append("CORE_DATABASE_MIGRATION_URL must differ from CORE_DATABASE_URL (separate roles)")
-        if not db.require_timescale:
-            problems.append("CORE_TIMESCALE_REQUIRED must be true in production (telemetry needs the hypertable)")
         if not db.require_postgis:
             problems.append("CORE_POSTGIS_REQUIRED must be true in production (routes and stops need geometry)")
         if not red.enabled:

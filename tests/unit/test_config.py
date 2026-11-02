@@ -75,8 +75,13 @@ class TestProductionRules:
     def test_postgis_is_optional_in_development(self) -> None:
         assert not Settings.from_env(DEV).database.require_postgis
 
-    def test_timescale_is_required(self) -> None:
-        assert "TIMESCALE" in problems({**PRODUCTION, "CORE_TIMESCALE_REQUIRED": "false"})
+    def test_timescale_is_required_by_default_in_production(self) -> None:
+        env = {k: v for k, v in PRODUCTION.items() if k != "CORE_TIMESCALE_REQUIRED"}
+        assert Settings.from_env(env).database.require_timescale
+
+    def test_timescale_can_be_turned_off_for_managed_postgresql_without_it(self) -> None:
+        # Amazon RDS has no TimescaleDB: telemetry stays a plain table pruned by the telemetry_retention job.
+        assert not Settings.from_env({**PRODUCTION, "CORE_TIMESCALE_REQUIRED": "false"}).database.require_timescale
 
     def test_redis_is_required_and_must_use_tls_and_authentication(self) -> None:
         without = {k: v for k, v in PRODUCTION.items() if k != "CORE_REDIS_URL"}
