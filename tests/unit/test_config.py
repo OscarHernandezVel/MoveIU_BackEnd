@@ -83,6 +83,19 @@ class TestProductionRules:
         # Amazon RDS has no TimescaleDB: telemetry stays a plain table pruned by the telemetry_retention job.
         assert not Settings.from_env({**PRODUCTION, "CORE_TIMESCALE_REQUIRED": "false"}).database.require_timescale
 
+    def test_the_ai_on_bedrock_needs_its_url_and_model(self) -> None:
+        bedrock = {
+            **PRODUCTION,
+            "CORE_AI_ENABLED": "true",
+            "CORE_AI_PROVIDER": "openai_compat",
+            "CORE_AI_BASE_URL": "https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1",
+            "CORE_AI_MODEL": "openai.gpt-oss-20b-1:0",
+            "CORE_AI_API_KEY": "clave-de-bedrock",
+        }
+        assert Settings.from_env(bedrock).ai.model == "openai.gpt-oss-20b-1:0"
+        # an empty URL (the compose variable left blank) is caught at start-up, not on the first analysis
+        assert "CORE_AI_BASE_URL" in problems({**bedrock, "CORE_AI_BASE_URL": ""})
+
     def test_redis_is_required_and_must_use_tls_and_authentication(self) -> None:
         without = {k: v for k, v in PRODUCTION.items() if k != "CORE_REDIS_URL"}
         assert "REDIS" in problems(without)

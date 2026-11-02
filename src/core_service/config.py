@@ -329,7 +329,7 @@ class Settings:
         if ai.provider == "anthropic" and not ai.api_key:
             return ["CORE_AI_API_KEY is required when the AI module uses the Anthropic provider"]
         if ai.provider == "openai_compat":
-            if ai.base_url == AISettings.base_url:
+            if not ai.base_url.strip() or ai.base_url == AISettings.base_url:
                 return ["CORE_AI_BASE_URL must point to the model server (e.g. http://llm:8000/v1)"]
             if not ai.model or ai.model == AISettings.model:
                 return ["CORE_AI_MODEL must name the model served by the open model server"]
