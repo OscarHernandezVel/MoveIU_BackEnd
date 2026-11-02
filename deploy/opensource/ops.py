@@ -14,11 +14,17 @@ que recordar comandos largos. Ejecutar en el servidor, desde esta carpeta::
     python3 ops.py backup                      # copia inmediata (además del cron)
     python3 ops.py update                      # git pull + reconstruir + reiniciar el backend
     python3 ops.py logs core                   # registros en vivo de un servicio
+
+Variante AWS (EC2 + Amazon RDS, ver docs/despliegue-aws-lambda.md)::
+
+    sudo python3 ops.py rds-init               # antes del primer arranque: PostGIS y roles en RDS
+    sudo python3 ops.py rds-grants             # después del primer arranque: permisos de core_reader
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -33,11 +39,6 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-COMPOSE = [
-    "docker", "compose",
-    "-f", str(HERE / "docker-compose.prod.yml"),
-    "-f", str(HERE / "docker-compose.2vcpu.yml"),
-]
 REQUIRED_FILES = [
     ".env", "runtime/valkey.conf", "certs/ca.crt", "certs/postgres.crt", "certs/postgres.key",
     "certs/valkey.crt", "certs/valkey.key", "secrets/jwt_secret", "secrets/ingest_key",
@@ -83,6 +84,19 @@ def read_env() -> dict[str, str]:
                 key, value = line.split("=", 1)
                 env[key.strip()] = value.strip()
     return env
+
+
+def compose_files() -> list[str]:
+    """Los de COMPOSE_FILE en .env (la variante AWS la escribe init_secrets.py --db-host) o los dos por defecto."""
+    env = read_env()
+    listed = env.get("COMPOSE_FILE", "")
+    if listed:
+        return listed.split(env.get("COMPOSE_PATH_SEPARATOR", ":"))
+    return ["docker-compose.prod.yml", "docker-compose.2vcpu.yml"]
+
+
+COMPOSE = ["docker", "compose", *[arg for name in compose_files() for arg in ("-f", str(HERE / name))]]
+USES_RDS = "docker-compose.aws.yml" in compose_files()
 
 
 def meminfo_mb(field: str) -> int:
@@ -178,15 +192,19 @@ def cmd_check(_: argparse.Namespace) -> int:
     else:
         fail("falta el complemento docker compose v2")
         problems += 1
-    daemon = subprocess.run(["docker", "info"], capture_output=True, text=True, check=False)
-    if daemon.returncode == 0:
+    try:  # sin tope, "docker info" puede quedarse esperando a un servicio que no arranca
+        daemon_ok = subprocess.run(["docker", "info"], capture_output=True, check=False, timeout=20).returncode == 0
+    except subprocess.TimeoutExpired:
+        daemon_ok = False
+    if daemon_ok:
         ok("el servicio docker responde")
     else:
         fail("docker no responde o su usuario no está en el grupo docker")
         problems += 1
 
     print("Archivos generados por init_secrets.py:")
-    missing = [name for name in REQUIRED_FILES if not (HERE / name).exists()]
+    required = [*REQUIRED_FILES, "certs/rds-ca.pem"] if USES_RDS else REQUIRED_FILES
+    missing = [name for name in required if not (HERE / name).exists()]
     if missing:
         fail("faltan: " + ", ".join(missing))
         fail("ejecute: sudo python3 init_secrets.py --domain <dominio> --email <correo>")
@@ -236,6 +254,9 @@ def cmd_status(_: argparse.Namespace) -> int:
 
 
 def cmd_post_install(_: argparse.Namespace) -> int:
+    if USES_RDS:
+        print("Con RDS use: sudo python3 ops.py rds-grants")
+        return 2
     compose("exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "core",
             "-f", "/sql/02-reader-grants.sql")
     print("Permisos de core_reader aplicados.")
@@ -263,8 +284,16 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     return 0 if wait_healthy() else 1
 
 
-# psql sustituye la variable email como literal SQL escapado; el correo nunca se concatena al texto del SQL.
-MAKE_ADMIN_SQL = "UPDATE users SET role = 'admin' WHERE lower(email) = lower(:" + "'email');\n"
+# Corre dentro del contenedor del backend con su URL de base de datos (rol core_app, que puede hacer UPDATE):
+# sirve igual con el PostgreSQL local y con RDS. Consulta parametrizada: el correo nunca se concatena al SQL.
+MAKE_ADMIN_PY = """
+import os, sys
+import psycopg
+from core_service.config import _secret
+with psycopg.connect(_secret(os.environ, "CORE_DATABASE_URL")) as conn:
+    cur = conn.execute("UPDATE users SET role = 'admin' WHERE lower(email) = lower(%s)", (sys.argv[1],))
+    print(cur.rowcount)
+"""
 
 
 def cmd_make_admin(args: argparse.Namespace) -> int:
@@ -272,9 +301,8 @@ def cmd_make_admin(args: argparse.Namespace) -> int:
     if not EMAIL.match(email):
         print("Correo inválido.", file=sys.stderr)
         return 2
-    result = compose("exec", "-T", "postgres", "psql", "-v", "ON_ERROR_STOP=1", "-v", f"email={email}",
-                     "-U", "postgres", "-d", "core", input=MAKE_ADMIN_SQL, capture_output=True)
-    if (result.stdout or "").strip().endswith("UPDATE 1"):
+    result = compose("exec", "-T", "core", "python", "-", email, input=MAKE_ADMIN_PY, capture_output=True)
+    if (result.stdout or "").strip() == "1":
         print(f"{email} ahora es administrador (debe cerrar sesión y volver a entrar).")
         return 0
     print(f"No existe la cuenta {email}: regístrela primero (POST /api/v1/auth/register).", file=sys.stderr)
@@ -282,6 +310,10 @@ def cmd_make_admin(args: argparse.Namespace) -> int:
 
 
 def cmd_backup(_: argparse.Namespace) -> int:
+    if USES_RDS:
+        print("Con RDS las copias son automáticas (según la retención de la instancia). Copia manual:")
+        print("  aws rds create-db-snapshot --db-instance-identifier <id> --db-snapshot-identifier manual-<fecha>")
+        return 0
     return run([sys.executable, str(HERE / "backup_db.py")], check=False).returncode
 
 
@@ -302,6 +334,56 @@ def cmd_logs(args: argparse.Namespace) -> int:
         return compose("logs", "-f", "--tail", str(args.tail), *services, check=False).returncode
     except KeyboardInterrupt:
         return 0
+
+
+PSQL_IMAGE = "postgres:16-alpine"
+# deploy/postgres en el repositorio MoveIU_BackEnd; backend/deploy/postgres en la carpeta de desarrollo con todo junto
+ROLES_SQL = next(
+    (p for p in (REPO / "deploy" / "postgres", REPO / "backend" / "deploy" / "postgres") if p.is_dir()),
+    REPO / "deploy" / "postgres",
+)
+
+
+def rds_psql(args: argparse.Namespace, sql: str) -> int:
+    """Ejecuta SQL en RDS como usuario maestro con psql en un contenedor de un solo uso (no hay que instalar psql)."""
+    host = read_env().get("DB_HOST", "")
+    if not USES_RDS or not host:
+        print("Solo para la variante AWS: falta DB_HOST en .env (init_secrets.py --db-host).", file=sys.stderr)
+        return 2
+    password = getpass.getpass(f"Contraseña del usuario maestro {args.master_user} de RDS: ")
+    dsn = f"host={host} port=5432 dbname=core user={args.master_user} sslmode=verify-full sslrootcert=/rds-ca.pem"
+    command = [
+        "docker", "run", "--rm", "-i", "-e", "PGPASSWORD",
+        "-v", f"{HERE / 'certs' / 'rds-ca.pem'}:/rds-ca.pem:ro",
+        PSQL_IMAGE, "psql", "-v", "ON_ERROR_STOP=1", dsn,
+    ]
+    # La contraseña viaja por el entorno del proceso, nunca en la línea de comandos.
+    return run(command, check=False, input=sql, env={**os.environ, "PGPASSWORD": password}).returncode
+
+
+def cmd_rds_init(args: argparse.Namespace) -> int:
+    try:
+        passwords = {
+            role: (HERE / "secrets" / f"pg_{role}_password").read_text(encoding="utf-8").strip()
+            for role in ("app", "migrator", "reader")
+        }
+    except PermissionError:
+        print("Ejecute con sudo: los secretos pg_* solo los puede leer root.", file=sys.stderr)
+        return 2
+    sql = (ROLES_SQL / "01-roles.sql").read_text(encoding="utf-8")
+    for role, value in passwords.items():  # hexadecimales (init_secrets.py): seguras dentro de un literal SQL
+        sql = sql.replace(f"__{role.upper()}_PASSWORD__", value)
+    code = rds_psql(args, "CREATE EXTENSION IF NOT EXISTS postgis;" + chr(10) + sql)
+    if code == 0:
+        print("PostGIS activo y roles creados. Siguiente: python3 ops.py up")
+    return code
+
+
+def cmd_rds_grants(args: argparse.Namespace) -> int:
+    code = rds_psql(args, (ROLES_SQL / "02-reader-grants.sql").read_text(encoding="utf-8"))
+    if code == 0:
+        print("Permisos de core_reader aplicados.")
+    return code
 
 
 def main() -> int:
@@ -327,6 +409,13 @@ def main() -> int:
     logs.add_argument("service", nargs="?", choices=["core", "postgres", "valkey", "caddy", "uptime-kuma"])
     logs.add_argument("--tail", type=int, default=100)
     logs.set_defaults(func=cmd_logs)
+    for name, func, text in (
+        ("rds-init", cmd_rds_init, "AWS: PostGIS y roles en RDS (antes del primer arranque)"),
+        ("rds-grants", cmd_rds_grants, "AWS: permisos de core_reader en RDS (tras el primer arranque)"),
+    ):
+        rds = sub.add_parser(name, help=text)
+        rds.add_argument("--master-user", default="postgres", help="usuario maestro de la instancia RDS")
+        rds.set_defaults(func=func)
     args = parser.parse_args()
     try:
         return int(args.func(args))

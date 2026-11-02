@@ -118,6 +118,8 @@ def main() -> int:
     parser.add_argument("--domain", required=True, help="dominio base: se usan app.<dominio> y api.<dominio>")
     parser.add_argument("--email", required=True, help="correo para Let's Encrypt")
     parser.add_argument("--force", action="store_true", help="regenerar todo (antes del primer arranque)")
+    parser.add_argument("--db-host", default="postgres",
+                        help="base de datos externa, p. ej. el endpoint de Amazon RDS (por defecto el contenedor local)")
     args = parser.parse_args()
 
     if shutil.which("openssl") is None:
@@ -142,10 +144,13 @@ def main() -> int:
     write(SECRETS / "pg_reader_password", secrets.token_hex(24), uid=UID_POSTGRES, force=force)
     valkey_pw = write(SECRETS / "valkey_password", secrets.token_hex(32), uid=None, force=force)
 
-    tls = "sslmode=verify-full&sslrootcert=/certs/ca.crt"
-    write(SECRETS / "database_url", f"postgresql://core_app:{app_pw}@postgres:5432/core?{tls}",
-          uid=UID_CORE, force=force)
-    write(SECRETS / "database_migration_url", f"postgresql://core_migrator:{migrator_pw}@postgres:5432/core?{tls}",
+    external_db = args.db_host != "postgres"
+    # La base local usa la CA interna; RDS, su propia cadena (certs/rds-ca.pem, ver docs/despliegue-aws-lambda.md).
+    ca = "/certs/rds-ca.pem" if external_db else "/certs/ca.crt"
+    tls = f"sslmode=verify-full&sslrootcert={ca}"
+    db = f"{args.db_host}:5432/core"
+    write(SECRETS / "database_url", f"postgresql://core_app:{app_pw}@{db}?{tls}", uid=UID_CORE, force=force)
+    write(SECRETS / "database_migration_url", f"postgresql://core_migrator:{migrator_pw}@{db}?{tls}",
           uid=UID_CORE, force=force)
     write(SECRETS / "redis_url", f"rediss://:{valkey_pw}@valkey:6379/0", uid=UID_CORE, force=force)
     # Opcionales: vacíos = función desactivada. Edítelos después si los necesita.
@@ -164,6 +169,9 @@ def main() -> int:
         "SMTP_USER=",
         f"SMTP_SENDER=no-responder@{args.domain}",
         "AI_ENABLED=false",
+        *([f"DB_HOST={args.db_host}",
+           "COMPOSE_FILE=docker-compose.prod.yml:docker-compose.2vcpu.yml:docker-compose.aws.yml"]
+          if external_db else []),
     ])
     write(HERE / ".env", env, uid=None, force=force)
 
