@@ -1,0 +1,469 @@
+{
+  "format": "core-catalog/1",
+  "provenance": {
+    "source": "Flota de demostración para las 23 rutas: matrículas y modelos ficticios (no hay datos públicos de la flota)",
+    "notes": "Dos buses por ruta, más los 8 de fleet_pasto.json. Reemplace por el inventario real de cada operador."
+  },
+  "buses": [
+    {
+      "bus_id": "2101",
+      "route_id": "C1",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2102",
+      "route_id": "C1",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2201",
+      "route_id": "C2",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2202",
+      "route_id": "C2",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2301",
+      "route_id": "C3",
+      "model": "Bus 12 m accesible",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 1,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2302",
+      "route_id": "C3",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2401",
+      "route_id": "C4",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2402",
+      "route_id": "C4",
+      "model": "Buseta",
+      "seats": 25,
+      "standing_positions": 4,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "maintenance"
+    },
+    {
+      "bus_id": "2501",
+      "route_id": "C5",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2502",
+      "route_id": "C5",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2601",
+      "route_id": "C6",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2602",
+      "route_id": "C6",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2701",
+      "route_id": "C7",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2702",
+      "route_id": "C7",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2801",
+      "route_id": "C8",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2802",
+      "route_id": "C8",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2901",
+      "route_id": "C9",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "2902",
+      "route_id": "C9",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21001",
+      "route_id": "C10",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21002",
+      "route_id": "C10",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21101",
+      "route_id": "C11",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21102",
+      "route_id": "C11",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21201",
+      "route_id": "C12",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21202",
+      "route_id": "C12",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21301",
+      "route_id": "C13",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21302",
+      "route_id": "C13",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21401",
+      "route_id": "C14",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21402",
+      "route_id": "C14",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21501",
+      "route_id": "C15",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21502",
+      "route_id": "C15",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21601",
+      "route_id": "C16",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "21602",
+      "route_id": "C16",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3101",
+      "route_id": "E1",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3102",
+      "route_id": "E1",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3201",
+      "route_id": "E2",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3202",
+      "route_id": "E2",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3301",
+      "route_id": "E3",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3302",
+      "route_id": "E3",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3401",
+      "route_id": "E4",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3402",
+      "route_id": "E4",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3501",
+      "route_id": "E5",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3502",
+      "route_id": "E5",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3601",
+      "route_id": "E6",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3602",
+      "route_id": "E6",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3701",
+      "route_id": "E7",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    },
+    {
+      "bus_id": "3702",
+      "route_id": "E7",
+      "model": "Bus 12 m",
+      "seats": 41,
+      "standing_positions": 8,
+      "wheelchair_spaces": 0,
+      "door_zones": 2,
+      "status": "active"
+    }
+  ]
+}
