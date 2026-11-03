@@ -44,6 +44,10 @@ GRANT USAGE, CREATE ON SCHEMA public TO core_migrator;
 GRANT USAGE ON SCHEMA public TO core_app, core_reader;
 
 -- Todo lo que cree core_migrator en el futuro queda accesible al servicio (solo datos, nunca DDL).
+-- Para cambiar los privilegios por defecto de otro rol hay que tener sus privilegios. En una base administrada
+-- (Amazon RDS, Timescale Cloud) quien ejecuta este script no es superusuario y, desde PostgreSQL 16, crear un rol
+-- no los hereda: se los concede explícitamente. En un PostgreSQL propio (superusuario) no cambia nada.
+GRANT core_migrator TO CURRENT_USER WITH INHERIT TRUE;
 ALTER DEFAULT PRIVILEGES FOR ROLE core_migrator IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO core_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE core_migrator IN SCHEMA public
