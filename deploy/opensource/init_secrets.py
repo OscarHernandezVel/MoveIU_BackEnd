@@ -178,7 +178,10 @@ def main() -> int:
     ])
     write(HERE / ".env", env, uid=None, force=force)
 
-    print("\nListo. Siguiente paso: docker compose -f docker-compose.prod.yml up -d --build")
+    if external_db:
+        print("\nListo. Siguientes pasos (RDS): sudo python3 ops.py rds-init  y luego  python3 ops.py up")
+    else:
+        print("\nListo. Siguiente paso: python3 ops.py up")
     print("La clave de ingesta para los buses (EDGE_INGEST_KEY) está en secrets/ingest_key.")
     return 0
 
