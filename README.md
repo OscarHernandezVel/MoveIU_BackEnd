@@ -54,7 +54,8 @@ backend/                          (el front-end está en ../frontend y el hardwa
 │   ├── opus-api.md               requisitos de la API de Opus 5.5 y límites de un modelo cerrado
 │   └── audit-report.md           revisión de lógica de negocio y de punteros de las listas
 ├── demo_data/route_c5.json       ruta, paradas y buses de demostración (sintética)
-├── demo_data/pasto_c1_c4.json    rutas C1–C4 reales de Pasto + 8 buses ficticios
+├── demo_data/pasto_todas.json    las 23 rutas reales de Pasto (C1–C16, E1–E7) + 8 buses ficticios
+├── demo_data/pasto_c1_c4.json    solo C1–C4 (pruebas)
 ├── demo_data/fleet_pasto.json    flota ficticia de las rutas C1–C4
 ├── simulator/simulate_bus.py     simula el hardware de un bus (solo biblioteca estándar)
 ├── simulator/simulate_fleet.py   simula todos los buses activos de un paquete a la vez

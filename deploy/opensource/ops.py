@@ -48,7 +48,7 @@ REQUIRED_FILES = [
 ]
 EXPECTED_OWNERS = {"secrets/jwt_secret": 10001, "certs/postgres.key": 1000, "certs/valkey.key": 999}
 EMAIL = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
-DEFAULT_PACKAGE = "demo_data/pasto_c1_c4.json"
+DEFAULT_PACKAGE = "demo_data/pasto_todas.json"
 
 
 # ----------------------------------------------------------------------------------------- utilidades
@@ -267,6 +267,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     mount: list[str] = []
     target = args.file
     host_file = Path(args.file)
+    if not host_file.is_file():
+        host_file = REPO / args.file  # demo_data/... del checkout: tras un git pull no hace falta reconstruir la imagen
     if host_file.is_file():
         # Archivo del servidor: se monta en el contenedor de un solo uso.
         mount = ["-v", f"{host_file.resolve()}:/tmp/catalog.json:ro"]
