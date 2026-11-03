@@ -23,15 +23,27 @@ else
   echo "Identidad web de GitHub: creada."
 fi
 
+# Repositorios creados desde el 15-jul-2026 usan el "immutable subject claim": repo:dueño@ID/repo@ID:ref:...
+# (Settings -> Actions -> OIDC). Se aceptan las dos formas, siempre solo para la rama main de este repositorio.
+IDS=$(curl -fsS "https://api.github.com/repos/$REPO" | python3 -c \
+  'import json,sys; d=json.load(sys.stdin); print(d["owner"]["id"], d["id"])') || IDS=""
+SUBJECTS="\"repo:$REPO:ref:refs/heads/main\""
+if [ -n "$IDS" ]; then
+  read -r OWNER_ID REPO_ID <<<"$IDS"
+  SUBJECTS="$SUBJECTS, \"repo:${REPO%%/*}@$OWNER_ID/${REPO#*/}@$REPO_ID:ref:refs/heads/main\""
+else
+  echo "Aviso: no se pudieron leer los ID del repositorio en GitHub; solo se acepta el formato clásico del sub." >&2
+fi
 TRUST=$(cat <<JSON
 {"Version": "2012-10-17", "Statement": [{"Effect": "Allow",
   "Principal": {"Federated": "$PROVIDER_ARN"},
   "Action": "sts:AssumeRoleWithWebIdentity",
   "Condition": {"StringEquals": {
     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-    "token.actions.githubusercontent.com:sub": "repo:$REPO:ref:refs/heads/main"}}}]}
+    "token.actions.githubusercontent.com:sub": [$SUBJECTS]}}}]}
 JSON
 )
+echo "Sujetos aceptados: $SUBJECTS"
 if aws iam get-role --role-name "$ROLE" >/dev/null 2>&1; then
   aws iam update-assume-role-policy --role-name "$ROLE" --policy-document "$TRUST"
   echo "Rol $ROLE: ya existía, confianza actualizada."
