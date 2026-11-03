@@ -34,6 +34,13 @@ class TestComparator:
         assert [r.state.bus_id for r in result] == ["B", "A"]
         assert result[0].stops_remaining == 1 and result[0].distance_m == pytest.approx(329, abs=5)
 
+    def test_arrival_time_uses_the_bus_speed_or_a_city_average(self) -> None:
+        moving = self.comparator.compare([bus("A", 0.6, speed_kmh=36.0)], TRACK, OUT, STOP)[0]
+        assert moving.eta_s == pytest.approx(moving.distance_m / 10, abs=2)  # 36 km/h = 10 m/s, no stop in between
+        stopped = self.comparator.compare([bus("A", 0.3, speed_kmh=0.0)], TRACK, OUT, STOP)[0]
+        expected = stopped.distance_m / (18 / 3.6) + (stopped.stops_remaining - 1) * 20
+        assert stopped.eta_s == pytest.approx(expected, abs=2)
+
     def test_buses_that_already_passed_the_stop_are_ignored(self) -> None:
         result = self.comparator.compare([bus("A", 0.9), bus("B", 0.6)], TRACK, OUT, STOP)
         assert [r.state.bus_id for r in result] == ["B"]

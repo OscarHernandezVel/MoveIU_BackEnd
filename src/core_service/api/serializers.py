@@ -47,6 +47,7 @@ class Serializer:
             "stops_remaining": item.stops_remaining,
             "distance_m": item.distance_m,
             "recommended": item.recommended,
+            "eta_min": max(1, round(item.eta_s / 60)),
         }
 
     @staticmethod

@@ -10,12 +10,27 @@ from core_service.models import Direction, LiveBusState, OccupancyState
 from core_service.routing import RouteStop, RouteTrack
 
 
+#: Below this the bus is stopped or crawling: its speed says nothing about when it arrives.
+MIN_USEFUL_SPEED_KMH = 8.0
+#: Average speed of an urban bus in Pasto including traffic lights (used when the bus reports no useful speed).
+DEFAULT_SPEED_KMH = 18.0
+#: Time spent at each intermediate stop (doors open, people boarding).
+DWELL_PER_STOP_S = 20
+
+
+def eta_seconds(distance_m: float, stops_remaining: int, speed_kmh: float | None) -> int:
+    """Rough arrival time: distance at the bus speed plus a fixed stop at each stop before this one."""
+    speed = speed_kmh if speed_kmh is not None and speed_kmh >= MIN_USEFUL_SPEED_KMH else DEFAULT_SPEED_KMH
+    return round(distance_m / (speed / 3.6) + max(stops_remaining - 1, 0) * DWELL_PER_STOP_S)
+
+
 @dataclass(frozen=True)
 class NextBus:
     state: LiveBusState
     stops_remaining: int
     distance_m: int
     recommended: bool
+    eta_s: int = 0
 
 
 @dataclass(frozen=True)
@@ -58,7 +73,8 @@ class NextBusComparator:
         for state, remaining in nearest_first:
             assert state.outbound_progress is not None
             distance = track.distance_to_stop_m(direction, state.outbound_progress, stop.stop.stop_id)
-            result.append(NextBus(state, remaining, round(distance), False))
+            eta = eta_seconds(distance, remaining, state.speed_kmh)
+            result.append(NextBus(state, remaining, round(distance), False, eta))
 
         if (
             len(result) >= 2
@@ -66,7 +82,7 @@ class NextBusComparator:
             and result[1].state.state is OccupancyState.AVAILABLE_SEATS
         ):
             second = result[1]
-            result[1] = NextBus(second.state, second.stops_remaining, second.distance_m, True)
+            result[1] = NextBus(second.state, second.stops_remaining, second.distance_m, True, second.eta_s)
         return result
 
     @staticmethod
