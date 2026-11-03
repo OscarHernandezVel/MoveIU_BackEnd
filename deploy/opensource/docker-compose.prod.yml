@@ -129,6 +129,23 @@ services:
       timeout: 3s
       retries: 30
 
+  simulator:
+    # Opcional: flota de demostración (python3 ops.py sim start). Envía por la ingesta real lecturas de todos los
+    # buses del catálogo, así todos los usuarios ven los mismos buses. Detenerlo antes de conectar buses reales.
+    image: capacidadbus/core-service:local
+    profiles: ["sim"]
+    restart: unless-stopped
+    entrypoint: ["python", "/sim/simulate_fleet.py"]
+    command: ["--base-url", "http://core:8080", "--key-file", "/run/secrets/ingest_key", "--package", "/data/pasto_todas.json"]
+    secrets:
+      - ingest_key
+    volumes:
+      - ../../simulator:/sim:ro        # del checkout: un git pull basta, sin reconstruir la imagen
+      - ../../demo_data:/data:ro
+    depends_on:
+      core:
+        condition: service_healthy
+
   uptime-kuma:
     # Opcional: monitor de disponibilidad con alertas (docker compose --profile monitoring up -d).
     # Solo escucha en el servidor; acceda con un túnel SSH: ssh -L 3001:127.0.0.1:3001 usuario@servidor

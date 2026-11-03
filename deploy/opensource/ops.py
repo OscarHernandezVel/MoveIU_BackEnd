@@ -14,6 +14,7 @@ que recordar comandos largos. Ejecutar en el servidor, desde esta carpeta::
     python3 ops.py backup                      # copia inmediata (además del cron)
     python3 ops.py update                      # git pull + reconstruir + reiniciar el backend
     python3 ops.py logs core                   # registros en vivo de un servicio
+    python3 ops.py sim start                   # flota de demostración en todas las rutas (sim stop la detiene)
 
 Variante AWS (EC2 + Amazon RDS, ver docs/despliegue-aws-lambda.md)::
 
@@ -330,6 +331,24 @@ def cmd_update(args: argparse.Namespace) -> int:
     return 0 if wait_healthy() else 1
 
 
+def cmd_sim(args: argparse.Namespace) -> int:
+    """Flota de demostración: el servicio ``simulator`` (perfil ``sim``) envía lecturas por la ingesta real."""
+    if args.action == "start":
+        compose("--profile", "sim", "up", "-d", "simulator")
+        print("Simulación iniciada: los buses aparecen en el mapa en unos segundos. Detener: python3 ops.py sim stop")
+    elif args.action == "stop":
+        compose("--profile", "sim", "rm", "-sf", "simulator")
+        print("Simulación detenida: los buses simulados desaparecen del mapa en menos de un minuto.")
+    elif args.action == "status":
+        compose("--profile", "sim", "ps", "simulator")
+    else:
+        try:
+            compose("--profile", "sim", "logs", "-f", "--tail", "20", "simulator", check=False)
+        except KeyboardInterrupt:
+            pass
+    return 0
+
+
 def cmd_logs(args: argparse.Namespace) -> int:
     services = [args.service] if args.service else []
     try:
@@ -408,9 +427,12 @@ def main() -> int:
     update.add_argument("--no-pull", action="store_true", help="no ejecutar git pull")
     update.set_defaults(func=cmd_update)
     logs = sub.add_parser("logs", help="registros en vivo")
-    logs.add_argument("service", nargs="?", choices=["core", "postgres", "valkey", "caddy", "uptime-kuma"])
+    logs.add_argument("service", nargs="?", choices=["core", "postgres", "valkey", "caddy", "uptime-kuma", "simulator"])
     logs.add_argument("--tail", type=int, default=100)
     logs.set_defaults(func=cmd_logs)
+    sim = sub.add_parser("sim", help="flota de demostración en todas las rutas (start, stop, status, logs)")
+    sim.add_argument("action", choices=["start", "stop", "status", "logs"])
+    sim.set_defaults(func=cmd_sim)
     for name, func, text in (
         ("rds-init", cmd_rds_init, "AWS: PostGIS y roles en RDS (antes del primer arranque)"),
         ("rds-grants", cmd_rds_grants, "AWS: permisos de core_reader en RDS (tras el primer arranque)"),
