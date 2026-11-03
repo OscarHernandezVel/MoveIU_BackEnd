@@ -39,20 +39,20 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
       - name: Desplegar
-        run: >
-          sam deploy
-          --stack-name capacidadbus-ingesta
-          --resolve-s3
-          --capabilities CAPABILITY_IAM
-          --no-confirm-changeset
-          --no-fail-on-empty-changeset
-          --parameter-overrides
-          BackendUrl=${{ vars.BACKEND_URL }}
-          VpcId=${{ vars.VPC_ID }}
-          SubnetIds=${{ vars.SUBNET_IDS }}
-          BackendSecurityGroupId=${{ vars.BACKEND_SG_ID }}
-          Ec2InstanceId=${{ vars.EC2_INSTANCE_ID }}
-          DbInstanceId=${{ vars.DB_INSTANCE_ID }}
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+          VPC_ID: ${{ vars.VPC_ID }}
+          SUBNET_IDS: ${{ vars.SUBNET_IDS }}
+          BACKEND_SG_ID: ${{ vars.BACKEND_SG_ID }}
+          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          DB_INSTANCE_ID: ${{ vars.DB_INSTANCE_ID }}
+        run: |
+          # SAM rechaza un parámetro vacío ("Clave="): los opcionales solo se pasan si la variable existe.
+          params=("BackendUrl=$BACKEND_URL" "VpcId=$VPC_ID" "SubnetIds=$SUBNET_IDS" "BackendSecurityGroupId=$BACKEND_SG_ID")
+          [ -n "$EC2_INSTANCE_ID" ] && params+=("Ec2InstanceId=$EC2_INSTANCE_ID")
+          [ -n "$DB_INSTANCE_ID" ] && params+=("DbInstanceId=$DB_INSTANCE_ID")
+          sam deploy --stack-name capacidadbus-ingesta --resolve-s3 --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "${params[@]}"
       - name: URL para los buses
         run: >
           aws cloudformation describe-stacks --stack-name capacidadbus-ingesta
