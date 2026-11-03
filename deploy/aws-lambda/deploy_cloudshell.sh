@@ -27,12 +27,12 @@ echo "EC2 $INSTANCE · IP privada $PRIVATE_IP · VPC $VPC · grupo $SG"
 echo "Subredes: $SUBNETS"
 python3 test_ingest_proxy.py
 
-STOP_EC2=""
-[ "${APAGADO_NOCTURNO:-0}" = "1" ] && STOP_EC2=$INSTANCE
-sam deploy --stack-name capacidadbus-ingesta --capabilities CAPABILITY_IAM --resolve-s3 \
-  --no-confirm-changeset --no-fail-on-empty-changeset \
-  --parameter-overrides "BackendUrl=http://$PRIVATE_IP:8080" "VpcId=$VPC" "SubnetIds=$SUBNETS" \
-    "BackendSecurityGroupId=$SG" "Ec2InstanceId=$STOP_EC2" "DbInstanceId=${DB_ID:-}"
+# SAM rechaza un parámetro vacío ("Clave="): los opcionales solo se pasan si tienen valor.
+PARAMS=("BackendUrl=http://$PRIVATE_IP:8080" "VpcId=$VPC" "SubnetIds=$SUBNETS" "BackendSecurityGroupId=$SG")
+[ "${APAGADO_NOCTURNO:-0}" = "1" ] && PARAMS+=("Ec2InstanceId=$INSTANCE")
+[ -n "${DB_ID:-}" ] && PARAMS+=("DbInstanceId=$DB_ID")
+SAM_CLI_TELEMETRY=0 sam deploy --stack-name capacidadbus-ingesta --capabilities CAPABILITY_IAM --resolve-s3 \
+  --no-confirm-changeset --no-fail-on-empty-changeset --parameter-overrides "${PARAMS[@]}"
 
 URL=$(aws cloudformation describe-stacks --stack-name capacidadbus-ingesta \
   --query "Stacks[0].Outputs[?OutputKey=='IngestUrl'].OutputValue" --output text)
