@@ -176,7 +176,10 @@ def main() -> int:
            "COMPOSE_FILE=docker-compose.prod.yml:docker-compose.2vcpu.yml:docker-compose.aws.yml"]
           if external_db else []),
     ])
-    write(HERE / ".env", env, uid=None, force=force)
+    # .env lo leen ops.py y docker compose con el usuario normal (grupo docker), no con root: si el script corre con
+    # sudo, el archivo queda para quien lo llamó (sigue con permisos 600).
+    operator = int(os.environ["SUDO_UID"]) if os.environ.get("SUDO_UID", "").isdigit() else None
+    write(HERE / ".env", env, uid=operator, force=force)
 
     if external_db:
         print("\nListo. Siguientes pasos (RDS): sudo python3 ops.py rds-init  y luego  python3 ops.py up")
