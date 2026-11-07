@@ -40,6 +40,7 @@ class IngestReport:
     stops_updated: int = 0
     routes_created: int = 0
     routes_updated: int = 0
+    routes_retired: int = 0
     buses_created: int = 0
     buses_updated: int = 0
     positions_written: int = 0
@@ -86,6 +87,9 @@ class CatalogLoader:
             return report
         used = {s.stop_id for item in prepared for s in (*item.stops, *item.return_stops)}
         self._count(report, used, prepared, buses)
+        active = {str(r["route_id"]) for r in self._db.query_all("SELECT route_id FROM routes WHERE active")}
+        retired = [r for r in package.retired_routes if r in active]
+        report.routes_retired = len(retired)
         if dry_run:
             return report
         with self._db.transaction():
@@ -93,6 +97,8 @@ class CatalogLoader:
                 self._repository.save_stop(stops[stop_id])
             for item in prepared:
                 self._write_route(item)
+            for route_id in retired:
+                self._repository.deactivate_route(route_id)
             for entry, positions in buses:
                 self._repository.save_bus(entry.bus)
                 if positions is not None:

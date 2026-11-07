@@ -82,6 +82,10 @@ class CatalogRepository:
             (stop.stop_id, stop.name, stop.location.lat, stop.location.lng, stop.active),
         )
 
+    def deactivate_route(self, route_id: str) -> None:
+        """The route stops being offered (passengers no longer see it); its history stays."""
+        self._db.execute("UPDATE routes SET active = false WHERE route_id = %s", (route_id,))
+
     def save_route(
         self,
         route_id: str,

@@ -89,6 +89,8 @@ class CatalogPackage:
     routes: list[PackageRoute] = field(default_factory=list)
     buses: list[PackageBus] = field(default_factory=list)
     provenance: dict[str, str] = field(default_factory=dict)
+    #: Routes that no longer run (e.g. C12, split into C12A and C12B): the loader marks them inactive.
+    retired_routes: list[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------ export
     def to_dict(self) -> dict[str, Any]:
@@ -142,6 +144,7 @@ class CatalogPackage:
             ],
             "routes": routes,
             "buses": buses,
+            **({"retired_routes": self.retired_routes} if self.retired_routes else {}),
         }
 
     def dumps(self) -> str:
@@ -344,11 +347,21 @@ def parse_package(data: Any) -> CatalogPackage:
             continue
         buses.append(PackageBus(Bus(bus_id, route_id, model or "", capacity, status), positions))
 
+    retired = data.get("retired_routes", [])
+    if not isinstance(retired, list) or len(retired) > MAX_ROUTES:
+        problems.add("retired_routes", f"must be a list of at most {MAX_ROUTES} route ids")
+        retired = []
+    for index, route_id in enumerate(retired):
+        if not isinstance(route_id, str) or not ROUTE_ID.match(route_id):
+            problems.add(f"retired_routes[{index}]", "invalid route id")
+        elif route_id in seen_routes:
+            problems.add(f"retired_routes[{index}]", f"{route_id} is also in routes: a route cannot be loaded and retired")
+
     if problems.items:
         raise CatalogPackageError(problems.items)
     provenance = data.get("provenance", {})
     clean = {str(k): str(v) for k, v in provenance.items()} if isinstance(provenance, dict) else {}
-    return CatalogPackage(stops, routes, buses, clean)
+    return CatalogPackage(stops, routes, buses, clean, [str(r) for r in retired])
 
 
 def load_package(text: str) -> CatalogPackage:

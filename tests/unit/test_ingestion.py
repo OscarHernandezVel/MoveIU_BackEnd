@@ -277,6 +277,22 @@ class TestLoader:
         assert (second.stops_updated, second.routes_updated, second.buses_updated) == (4, 1, 2)
         assert second.stops_created == second.routes_created == second.buses_created == 0
 
+    def test_a_retired_route_stops_being_offered_but_keeps_its_history(
+        self, loader: CatalogLoader, repo: CatalogRepository, db: Database
+    ) -> None:
+        loader.ingest(parse_package(package_data()))
+        data = package_data()
+        data["routes"][0]["route_id"] = "T2"  # T1 is split/renamed: the new package brings T2 and retires T1
+        data["buses"] = [bus("9001", route_id="T2")]
+        data["retired_routes"] = ["T1", "NUNCA"]  # an unknown id is ignored
+        assert loader.ingest(parse_package(data), dry_run=True).routes_retired == 1
+        report = loader.ingest(parse_package(data))
+        assert report.routes_retired == 1 and report.routes_created == 1
+        assert db.query_one("SELECT active FROM routes WHERE route_id = 'T1'") == {"active": False}
+        catalog = RouteCatalog()
+        CatalogService(repo, catalog, MetricsRegistry()).reload()
+        assert sorted(catalog.route_ids()) == ["T2"]
+
     def test_a_dry_run_reports_but_writes_nothing(self, loader: CatalogLoader, db: Database) -> None:
         report = loader.ingest(parse_package(package_data()), dry_run=True)
         assert report.dry_run and not report.applied and report.routes_created == 1 and report.positions_written == 82

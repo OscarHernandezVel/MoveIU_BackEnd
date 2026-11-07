@@ -47,6 +47,7 @@ def _merge(base: CatalogPackage, extra: CatalogPackage) -> CatalogPackage:
         list(routes.values()),
         list(buses.values()),
         {**base.provenance, **{f"fleet_{k}": v for k, v in extra.provenance.items()}},
+        [*base.retired_routes, *extra.retired_routes],
     )
 
 
@@ -54,7 +55,8 @@ def _print_report(report: IngestReport) -> None:
     mode = "SIMULACIÓN (no se escribió nada)" if report.dry_run else ("APLICADO" if report.applied else "NO APLICADO")
     print(f"Resultado: {mode}")
     print(f"  Paradas : {report.stops_created} nuevas, {report.stops_updated} actualizadas")
-    print(f"  Rutas   : {report.routes_created} nuevas, {report.routes_updated} actualizadas (ambos sentidos)")
+    print(f"  Rutas   : {report.routes_created} nuevas, {report.routes_updated} actualizadas (ambos sentidos)"
+          + (f", {report.routes_retired} retiradas" if report.routes_retired else ""))
     print(f"  Buses   : {report.buses_created} nuevos, {report.buses_updated} actualizados")
     print(f"  Posiciones del mapa interior: {report.positions_written}")
     for title, items in (("Correcciones", report.repairs), ("Avisos", report.warnings), ("Errores", report.errors)):
