@@ -105,6 +105,14 @@ class TestRequest:
         }
         assert wire[3] == {"role": "tool", "tool_call_id": "c1", "content": '{"ok": true}'}
 
+    def test_the_reasoning_bedrock_puts_in_the_content_is_dropped(self) -> None:
+        # Real answer of openai.gpt-oss-20b-1:0 on Bedrock: the chain of thought comes inline, and may contain "{".
+        content = '<reasoning>The user wants JSON like {"findings": []}. Ok.</reasoning>{"findings": [], "summary": "ok"}'
+        payload = {"choices": [{"message": {"content": content}, "finish_reason": "stop"}]}
+        response = client(payload=payload).complete("s", [{"role": "user", "content": "q"}], [], 100)
+        assert response.text == '{"findings": [], "summary": "ok"}'
+        assert response.content == ({"type": "text", "text": response.text},)
+
     def test_malformed_tool_arguments_become_an_empty_call_not_a_crash(self) -> None:
         call = {"id": "c1", "function": {"name": "get_bus_state", "arguments": "{not json"}}
         payload = {"choices": [{"message": {"tool_calls": [call]}, "finish_reason": "tool_calls"}]}

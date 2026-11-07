@@ -17,6 +17,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import logging
+import re
 import ssl
 import urllib.error
 import urllib.request
@@ -27,6 +28,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
+#: gpt-oss on Amazon Bedrock (and some vLLM builds) puts its chain of thought inside ``content``:
+#: "<reasoning>...</reasoning>answer". It is not the answer, and it may contain a "{" that breaks the JSON reader.
+REASONING = re.compile(r"<(reasoning|think)>.*?</\1>", re.DOTALL | re.IGNORECASE)
 
 
 class LLMError(Exception):
@@ -206,7 +210,7 @@ class OpenAICompatibleClient(LLMClient):
         message = choice.get("message")
         if not isinstance(message, dict):
             raise LLMError("unexpected model server answer", retryable=False)
-        text = message.get("content") or ""
+        text = REASONING.sub("", message.get("content") or "").strip()
         blocks: list[dict[str, Any]] = [{"type": "text", "text": text}] if text else []
         calls: list[ToolCall] = []
         for raw in message.get("tool_calls") or []:
