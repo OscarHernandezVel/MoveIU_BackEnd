@@ -67,6 +67,8 @@ class Serializer:
         }
         if include_path:
             data["path"] = [{"lat": p.lat, "lng": p.lng} for p in track.path.points]
+            if track.return_points:
+                data["return_path"] = [{"lat": p.lat, "lng": p.lng} for p in track.return_points]
         return data
 
     @staticmethod

@@ -131,3 +131,16 @@ class TestNextBusService:
         assert service.hint_after(replace(first, route_id=None), "P-022") is None
         assert service.hint_after(replace(first, direction=None), "P-022") is None
         assert service.hint_after(first, "P-999") is None
+
+
+class TestRouteAnswer:
+    def test_a_return_trip_on_other_streets_is_sent_with_the_route_for_the_map(self) -> None:
+        from core_service.api.serializers import Serializer
+        from core_service.models import GeoPoint
+
+        track = demo_track()
+        assert "return_path" not in Serializer.route(track, include_path=True)  # mirror of the outbound trace
+        track.return_points = [GeoPoint(1.21, -77.28), GeoPoint(1.22, -77.29)]
+        data = Serializer.route(track, include_path=True)
+        assert data["return_path"] == [{"lat": 1.21, "lng": -77.28}, {"lat": 1.22, "lng": -77.29}]
+        assert "return_path" not in Serializer.route(track)  # the route list stays light

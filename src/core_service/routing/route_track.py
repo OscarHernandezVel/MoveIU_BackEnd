@@ -52,6 +52,8 @@ class RouteTrack:
         self.route_id = route_id
         self.name = name
         self.path = path
+        #: The return trip's own trace when it uses other streets (shown on maps); ``None`` = outbound reversed.
+        self.return_points: list[GeoPoint] | None = None
         self._stops: DoublyLinkedList[RouteStop] = DoublyLinkedList()
         self._nodes: Array[Node[RouteStop]] = Array()
         self._progress: Array[float] = Array()

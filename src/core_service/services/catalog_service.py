@@ -38,6 +38,7 @@ class CatalogService:
                 track = RouteTrack(
                     definition.route_id, definition.name, PathGeometry(definition.path), definition.stops
                 )
+                track.return_points = list(definition.return_path) if definition.return_path else None
                 tracks.append(track)
                 self._sync_progress(definition, track)
                 if not definition.return_is_mirror:
