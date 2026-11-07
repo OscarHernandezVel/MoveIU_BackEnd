@@ -227,7 +227,7 @@
     },
     {
       "bus_id": "21201",
-      "route_id": "C12",
+      "route_id": "C12A",
       "model": "Bus 12 m",
       "seats": 41,
       "standing_positions": 8,
@@ -237,7 +237,7 @@
     },
     {
       "bus_id": "21202",
-      "route_id": "C12",
+      "route_id": "C12B",
       "model": "Bus 12 m",
       "seats": 41,
       "standing_positions": 8,
