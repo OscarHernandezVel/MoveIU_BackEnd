@@ -326,6 +326,9 @@ def cmd_update(args: argparse.Namespace) -> int:
             print("El proyecto no es un repositorio git: copie la versión nueva y use --no-pull.")
             return 1
         run(["git", "-C", str(REPO), "pull", "--ff-only"])
+        front = REPO / "frontend"
+        if front.is_symlink():  # enlace al clon de MoveIU_FrontEnd: Caddy sirve los archivos nuevos sin reiniciar
+            run(["git", "-C", str(front.resolve()), "pull", "--ff-only"])
     compose("build", "core")
     compose("up", "-d", "--no-deps", "core")
     return 0 if wait_healthy() else 1
